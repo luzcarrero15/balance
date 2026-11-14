@@ -8,6 +8,7 @@ const categoriesRoutes = require('./routes/categoriesRoutes');
 const movementsRoutes = require('./routes/movementsRoutes');
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = process.env.SESSION_SECRET || 'balance_secret_key_default_2026';
 
