@@ -132,6 +132,46 @@ router.post('/login', async (req, res) => {
 });
 
 /**
+ * POST /api/auth/reset-password - Restablecer contraseña con Argon2i
+ */
+router.post('/reset-password', async (req, res) => {
+  const { email, newPassword } = req.body;
+
+  if (!email || !newPassword) {
+    return res.status(400).json({ error: 'Debes ingresar tu correo y la nueva contraseña' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
+  }
+
+  try {
+    const cleanEmail = email.trim().toLowerCase();
+    const userResult = await db.query(
+      'SELECT id, nombre, email FROM usuarios WHERE email = $1 OR LOWER(nombre) = $1',
+      [cleanEmail]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'No se encontró ninguna cuenta con ese correo o usuario' });
+    }
+
+    const userId = userResult.rows[0].id;
+    const passwordHash = await hashPassword(newPassword);
+
+    await db.query(
+      'UPDATE usuarios SET password_hash = $1 WHERE id = $2',
+      [passwordHash, userId]
+    );
+
+    return res.json({ mensaje: 'Contraseña restablecida exitosamente. Ya puedes iniciar sesión con tu nueva clave.' });
+  } catch (error) {
+    console.error('Error en /reset-password:', error);
+    return res.status(500).json({ error: 'Error al restablecer la contraseña' });
+  }
+});
+
+/**
  * POST /api/auth/logout - Cerrar sesión
  */
 router.post('/logout', (req, res) => {

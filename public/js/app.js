@@ -4,13 +4,53 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Configuraciones Regionales e Internacionales (Requisito 4)
+  const REGIONS = {
+    CO: {
+      name: 'Colombia',
+      currency: 'COP',
+      symbol: '$',
+      locale: 'es-CO',
+      thousandsSep: '.',
+      decimalSep: ',',
+      flag: '🇨🇴'
+    },
+    US: {
+      name: 'USA',
+      currency: 'USD',
+      symbol: '$',
+      locale: 'en-US',
+      thousandsSep: ',',
+      decimalSep: '.',
+      flag: '🇺🇸'
+    },
+    ES: {
+      name: 'España / Europa',
+      currency: 'EUR',
+      symbol: '€',
+      locale: 'es-ES',
+      thousandsSep: '.',
+      decimalSep: ',',
+      flag: '🇪🇸'
+    },
+    MX: {
+      name: 'México',
+      currency: 'MXN',
+      symbol: '$',
+      locale: 'es-MX',
+      thousandsSep: ',',
+      decimalSep: '.',
+      flag: '🇲🇽'
+    }
+  };
+
   // Estado global de la aplicación
   const state = {
     user: null,
     scope: 'todo',         // 'todo' | 'personal' | 'negocio'
     tipoFilter: 'todos',   // 'todos' | 'ingreso' | 'gasto'
     searchQuery: '',       // Filtro de búsqueda en tiempo real
-    theme: localStorage.getItem('balance_theme') || 'theme-1',
+    region: localStorage.getItem('faro_region') || 'CO',
     categoriasIngreso: [],
     categoriasGasto: [],
     movimientos: []
@@ -20,6 +60,30 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.className = 'theme-1';
 
   // ==================== 2. ELEMENTOS DEL DOM ====================
+  const selectRegion = document.getElementById('select-region');
+  if (selectRegion) {
+    selectRegion.value = state.region;
+    selectRegion.addEventListener('change', (e) => {
+      state.region = e.target.value;
+      localStorage.setItem('faro_region', state.region);
+      refreshDashboard();
+      setupAllCurrencyInputs();
+    });
+  }
+
+  // Activar botones de ver/ocultar contraseña (Requisito 2)
+  document.querySelectorAll('.btn-toggle-pwd').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.dataset.target;
+      const input = document.getElementById(targetId);
+      if (input) {
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        btn.textContent = isPassword ? '🙈' : '👁️';
+      }
+    });
+  });
+
   const authSection = document.getElementById('auth-section');
   const dashboardSection = document.getElementById('dashboard-section');
   const navUserPill = document.getElementById('nav-user-pill');
@@ -32,6 +96,57 @@ document.addEventListener('DOMContentLoaded', () => {
   const formLogin = document.getElementById('form-login');
   const formRegister = document.getElementById('form-register');
   const authAlert = document.getElementById('auth-alert');
+
+  // Modal y Enlace de Recuperación de Contraseña (Requisito 3)
+  const linkForgot = document.getElementById('link-forgot-pwd');
+  const modalForgot = document.getElementById('modal-forgot');
+  const formForgot = document.getElementById('form-forgot');
+  const forgotAlert = document.getElementById('forgot-alert');
+
+  if (linkForgot && modalForgot) {
+    linkForgot.addEventListener('click', (e) => {
+      e.preventDefault();
+      modalForgot.classList.add('active');
+      if (forgotAlert) forgotAlert.style.display = 'none';
+      if (formForgot) formForgot.reset();
+    });
+  }
+
+  if (formForgot) {
+    formForgot.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('forgot-email').value;
+      const newPassword = document.getElementById('forgot-new-password').value;
+
+      try {
+        const res = await fetch('/api/auth/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, newPassword })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          forgotAlert.textContent = data.error || 'Error al restablecer la contraseña';
+          forgotAlert.className = 'alert error';
+          forgotAlert.style.display = 'block';
+          return;
+        }
+
+        forgotAlert.textContent = data.mensaje;
+        forgotAlert.className = 'alert success';
+        forgotAlert.style.display = 'block';
+
+        setTimeout(() => {
+          modalForgot.classList.remove('active');
+          showAuthAlert('Contraseña restablecida exitosamente. Inicia sesión con tu nueva clave.', 'success');
+        }, 2000);
+      } catch (err) {
+        forgotAlert.textContent = 'Error de conexión con el servidor';
+        forgotAlert.className = 'alert error';
+        forgotAlert.style.display = 'block';
+      }
+    });
+  }
 
   // Elementos de Métricas y Hero
   const heroLabel = document.getElementById('hero-label');
@@ -67,10 +182,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectCatGasto = document.getElementById('gasto-categoria');
   const selectCatEdit = document.getElementById('edit-categoria');
 
-  // ==================== 3. UTILIDADES ====================
+  // ==================== 3. UTILIDADES REGIONALES E INTERNACIONALES ====================
+  function getActiveRegion() {
+    return REGIONS[state.region] || REGIONS.CO;
+  }
+
   function formatMoney(amount) {
     const val = parseFloat(amount) || 0;
-    return '$ ' + val.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const region = getActiveRegion();
+    return val.toLocaleString(region.locale, {
+      style: 'currency',
+      currency: region.currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
   }
 
   function getTodayString() {
@@ -85,48 +210,100 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!isoString) return fallbackHora || '';
     try {
       const d = new Date(isoString);
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      const region = getActiveRegion();
+      return d.toLocaleTimeString(region.locale, { hour: '2-digit', minute: '2-digit', hour12: true });
     } catch (e) {
       return fallbackHora || '';
     }
   }
 
-  // Formateador de moneda en tiempo real mientras el usuario escribe (Separadores de miles)
+  function formatDateDisplay(dateStr) {
+    if (!dateStr) return '';
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        const region = getActiveRegion();
+        return d.toLocaleDateString(region.locale);
+      }
+      return dateStr;
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  // Formateador de moneda en tiempo real sin límite de dígitos (Requisito 1)
   function setupCurrencyMask(inputElem) {
     if (!inputElem) return;
     inputElem.addEventListener('input', (e) => {
-      let raw = e.target.value.replace(/[^\d,.]/g, '');
-      if (!raw) {
-        e.target.value = '';
-        return;
-      }
-      const hasComma = raw.includes(',');
-      const parts = raw.split(/[,.]/);
-      const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      const region = getActiveRegion();
+      let val = e.target.value;
 
-      if (parts.length > 1) {
-        const decimals = parts.slice(1).join('').substring(0, 2);
-        e.target.value = `${integerPart},${decimals}`;
+      if (region.decimalSep === ',') {
+        // Formato con coma para decimales y puntos para miles (CO, ES)
+        let clean = val.replace(/[^\d,]/g, '');
+        if (!clean) { e.target.value = ''; return; }
+        const hasComma = clean.includes(',');
+        const parts = clean.split(',');
+        const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+        if (parts.length > 1) {
+          const decimals = parts.slice(1).join('').substring(0, 2);
+          e.target.value = `${integerPart},${decimals}`;
+        } else {
+          e.target.value = integerPart + (hasComma ? ',' : '');
+        }
       } else {
-        e.target.value = integerPart + (hasComma ? ',' : '');
+        // Formato con punto para decimales y comas para miles (US, MX)
+        let clean = val.replace(/[^\d.]/g, '');
+        if (!clean) { e.target.value = ''; return; }
+        const hasDot = clean.includes('.');
+        const parts = clean.split('.');
+        const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+        if (parts.length > 1) {
+          const decimals = parts.slice(1).join('').substring(0, 2);
+          e.target.value = `${integerPart}.${decimals}`;
+        } else {
+          e.target.value = integerPart + (hasDot ? '.' : '');
+        }
+      }
+    });
+  }
+
+  function setupAllCurrencyInputs() {
+    ['ingreso-monto', 'gasto-monto', 'edit-monto'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.value) {
+        const num = parseCurrencyInput(el.value);
+        if (num > 0) el.value = formatNumberToMask(num);
       }
     });
   }
 
   function parseCurrencyInput(value) {
     if (!value) return 0;
-    const clean = value.toString().replace(/\./g, '').replace(',', '.');
+    const region = getActiveRegion();
+    let clean = value.toString();
+    if (region.decimalSep === ',') {
+      clean = clean.replace(/\./g, '').replace(',', '.');
+    } else {
+      clean = clean.replace(/,/g, '');
+    }
     return parseFloat(clean) || 0;
   }
 
   function formatNumberToMask(num) {
-    if (num === null || num === undefined) return '';
-    const parts = num.toString().split('.');
-    const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    if (parts.length > 1 && parseInt(parts[1], 10) > 0) {
-      return `${integerPart},${parts[1].substring(0, 2)}`;
+    if (num === null || num === undefined || isNaN(num)) return '';
+    const region = getActiveRegion();
+    const parts = parseFloat(num).toFixed(2).split('.');
+    if (region.decimalSep === ',') {
+      const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      return parseInt(parts[1], 10) > 0 ? `${integerPart},${parts[1]}` : integerPart;
+    } else {
+      const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      return parseInt(parts[1], 10) > 0 ? `${integerPart}.${parts[1]}` : integerPart;
     }
-    return integerPart;
   }
 
   function showAuthAlert(msg, type = 'error') {
@@ -367,7 +544,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       tr.innerHTML = `
         <td style="white-space: nowrap;">
-          <div style="font-weight: 600;">${mov.fecha}</div>
+          <div style="font-weight: 600;">${formatDateDisplay(mov.fecha)}</div>
           <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">${formatLocalTime(mov.creado_en, mov.hora)}</div>
         </td>
         <td><strong>${escapeHtml(mov.descripcion || 'Sin descripción')}</strong></td>

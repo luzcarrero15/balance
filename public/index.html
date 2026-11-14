@@ -29,6 +29,16 @@
 
       <!-- Acciones de Navegación -->
       <div class="nav-actions">
+        <!-- Selector Regional e Internacional (País / Moneda) -->
+        <div class="region-selector-wrapper">
+          <select id="select-region" class="region-select" title="Selecciona País y Moneda">
+            <option value="CO" selected>🇨🇴 Colombia (COP $)</option>
+            <option value="US">🇺🇸 USA (USD $)</option>
+            <option value="ES">🇪🇸 España (EUR €)</option>
+            <option value="MX">🇲🇽 México (MXN $)</option>
+          </select>
+        </div>
+
         <!-- Usuario Autenticado (Oculto por defecto) -->
         <div class="user-pill" id="nav-user-pill" style="display: none;">
           <span id="nav-user-name">Usuario</span>
@@ -57,7 +67,13 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="login-password">Contraseña</label>
-          <input type="password" id="login-password" class="form-input" placeholder="Tu contraseña" required>
+          <div class="password-wrapper">
+            <input type="password" id="login-password" class="form-input" placeholder="Tu contraseña" required>
+            <button type="button" class="btn-toggle-pwd" data-target="login-password" title="Mostrar/ocultar contraseña">👁️</button>
+          </div>
+          <div style="text-align: right; margin-top: 0.4rem;">
+            <a href="#" id="link-forgot-pwd" class="forgot-link">¿Olvidaste tu contraseña?</a>
+          </div>
         </div>
         <button type="submit" class="btn-submit btn-income">Entrar a FARO Balance</button>
       </form>
@@ -74,7 +90,10 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="register-password">Contraseña (Mínimo 6 caracteres)</label>
-          <input type="password" id="register-password" class="form-input" placeholder="Crea una contraseña segura" required minlength="6">
+          <div class="password-wrapper">
+            <input type="password" id="register-password" class="form-input" placeholder="Crea una contraseña segura" required minlength="6">
+            <button type="button" class="btn-toggle-pwd" data-target="register-password" title="Mostrar/ocultar contraseña">👁️</button>
+          </div>
         </div>
         <button type="submit" class="btn-submit btn-income">Registrarme</button>
       </form>
@@ -387,6 +406,35 @@
         </div>
 
         <button type="submit" class="btn-submit btn-income" id="edit-submit-btn">Actualizar Movimiento</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MODAL RESTABLECER CONTRASEÑA ================= -->
+  <div class="modal-overlay" id="modal-forgot">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title">🔐 Restablecer Contraseña</h3>
+        <button type="button" class="modal-close" data-close-modal>&times;</button>
+      </div>
+
+      <div id="forgot-alert" class="alert"></div>
+
+      <form id="form-forgot">
+        <div class="form-group">
+          <label class="form-label" for="forgot-email">Correo o Usuario Registrado*</label>
+          <input type="text" id="forgot-email" class="form-input" placeholder="tu@correo.com o tu usuario" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="forgot-new-password">Nueva Contraseña (Mínimo 6 caracteres)*</label>
+          <div class="password-wrapper">
+            <input type="password" id="forgot-new-password" class="form-input" placeholder="Escribe tu nueva contraseña" required minlength="6">
+            <button type="button" class="btn-toggle-pwd" data-target="forgot-new-password" title="Mostrar/ocultar contraseña">👁️</button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-submit btn-income">Guardar Nueva Contraseña</button>
       </form>
     </div>
   </div>
