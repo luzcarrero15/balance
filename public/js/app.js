@@ -623,7 +623,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const categoria_id = document.getElementById('edit-categoria').value;
     const fecha = document.getElementById('edit-fecha').value;
     const descripcion = document.getElementById('edit-desc').value;
-    const descripcion = document.getElementById('edit-desc').value;
 
     try {
       const res = await fetch(`/api/movimientos/${id}`, {
