@@ -36,6 +36,12 @@
             <option value="US">🇺🇸 USA (USD $)</option>
             <option value="ES">🇪🇸 España (EUR €)</option>
             <option value="MX">🇲🇽 México (MXN $)</option>
+            <option value="PE">🇵🇪 Perú (PEN S/)</option>
+            <option value="AR">🇦🇷 Argentina (ARS $)</option>
+            <option value="CL">🇨🇱 Chile (CLP $)</option>
+            <option value="EC">🇪🇨 Ecuador (USD $)</option>
+            <option value="GB">🇬🇧 Reino Unido (GBP £)</option>
+            <option value="PA">🇵🇦 Panamá (USD $)</option>
           </select>
         </div>
 
@@ -410,31 +416,27 @@
     </div>
   </div>
 
-  <!-- ================= MODAL RESTABLECER CONTRASEÑA ================= -->
+  <!-- ================= MODAL RECUPERAR CONTRASEÑA ================= -->
   <div class="modal-overlay" id="modal-forgot">
     <div class="modal-box">
       <div class="modal-header">
-        <h3 class="modal-title">🔐 Restablecer Contraseña</h3>
+        <h3 class="modal-title">🔐 Recuperar Contraseña</h3>
         <button type="button" class="modal-close" data-close-modal>&times;</button>
       </div>
 
       <div id="forgot-alert" class="alert"></div>
 
       <form id="form-forgot">
-        <div class="form-group">
-          <label class="form-label" for="forgot-email">Correo o Usuario Registrado*</label>
-          <input type="text" id="forgot-email" class="form-input" placeholder="tu@correo.com o tu usuario" required>
-        </div>
+        <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.5;">
+          Ingresa tu correo electrónico registrado. Te enviaremos un enlace seguro, temporal y de un solo uso para que puedas crear tu nueva contraseña.
+        </p>
 
         <div class="form-group">
-          <label class="form-label" for="forgot-new-password">Nueva Contraseña (Mínimo 6 caracteres)*</label>
-          <div class="password-wrapper">
-            <input type="password" id="forgot-new-password" class="form-input" placeholder="Escribe tu nueva contraseña" required minlength="6">
-            <button type="button" class="btn-toggle-pwd" data-target="forgot-new-password" title="Mostrar/ocultar contraseña">👁️</button>
-          </div>
+          <label class="form-label" for="forgot-email">Correo Electrónico Registrado*</label>
+          <input type="email" id="forgot-email" class="form-input" placeholder="tu@correo.com" required>
         </div>
 
-        <button type="submit" class="btn-submit btn-income">Guardar Nueva Contraseña</button>
+        <button type="submit" class="btn-submit btn-income" id="btn-submit-forgot">Enviar Enlace de Recuperación</button>
       </form>
     </div>
   </div>

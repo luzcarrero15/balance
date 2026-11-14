@@ -41,6 +41,60 @@ document.addEventListener('DOMContentLoaded', () => {
       thousandsSep: ',',
       decimalSep: '.',
       flag: '🇲🇽'
+    },
+    PE: {
+      name: 'Perú',
+      currency: 'PEN',
+      symbol: 'S/',
+      locale: 'es-PE',
+      thousandsSep: ',',
+      decimalSep: '.',
+      flag: '🇵🇪'
+    },
+    AR: {
+      name: 'Argentina',
+      currency: 'ARS',
+      symbol: '$',
+      locale: 'es-AR',
+      thousandsSep: '.',
+      decimalSep: ',',
+      flag: '🇦🇷'
+    },
+    CL: {
+      name: 'Chile',
+      currency: 'CLP',
+      symbol: '$',
+      locale: 'es-CL',
+      thousandsSep: '.',
+      decimalSep: ',',
+      flag: '🇨🇱'
+    },
+    EC: {
+      name: 'Ecuador',
+      currency: 'USD',
+      symbol: '$',
+      locale: 'es-EC',
+      thousandsSep: '.',
+      decimalSep: ',',
+      flag: '🇪🇨'
+    },
+    GB: {
+      name: 'Reino Unido',
+      currency: 'GBP',
+      symbol: '£',
+      locale: 'en-GB',
+      thousandsSep: ',',
+      decimalSep: '.',
+      flag: '🇬🇧'
+    },
+    PA: {
+      name: 'Panamá',
+      currency: 'USD',
+      symbol: '$',
+      locale: 'es-PA',
+      thousandsSep: ',',
+      decimalSep: '.',
+      flag: '🇵🇦'
     }
   };
 
@@ -116,34 +170,38 @@ document.addEventListener('DOMContentLoaded', () => {
     formForgot.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = document.getElementById('forgot-email').value;
-      const newPassword = document.getElementById('forgot-new-password').value;
+      const submitBtn = document.getElementById('btn-submit-forgot');
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Enviando enlace...';
+      }
 
       try {
-        const res = await fetch('/api/auth/reset-password', {
+        const res = await fetch('/api/auth/forgot-password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, newPassword })
+          body: JSON.stringify({ email })
         });
         const data = await res.json();
-        if (!res.ok) {
-          forgotAlert.textContent = data.error || 'Error al restablecer la contraseña';
-          forgotAlert.className = 'alert error';
-          forgotAlert.style.display = 'block';
-          return;
-        }
 
-        forgotAlert.textContent = data.mensaje;
+        forgotAlert.textContent = data.mensaje || 'Si el correo está registrado, recibirás un enlace de recuperación en los próximos minutos.';
         forgotAlert.className = 'alert success';
         forgotAlert.style.display = 'block';
 
         setTimeout(() => {
           modalForgot.classList.remove('active');
-          showAuthAlert('Contraseña restablecida exitosamente. Inicia sesión con tu nueva clave.', 'success');
-        }, 2000);
+          showAuthAlert('Revisa tu correo para completar el restablecimiento.', 'success');
+        }, 3500);
       } catch (err) {
-        forgotAlert.textContent = 'Error de conexión con el servidor';
+        forgotAlert.textContent = 'Error de conexión con el servidor. Intenta nuevamente.';
         forgotAlert.className = 'alert error';
         forgotAlert.style.display = 'block';
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Enviar Enlace de Recuperación';
+        }
       }
     });
   }
