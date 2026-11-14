@@ -1,0 +1,688 @@
+/**
+ * BALANCE - Lógica del Frontend
+ * Gestión de autenticación, CRUD de movimientos, cálculo de balances y cambio de paleta en vivo.
+ */
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Estado global de la aplicación
+  const state = {
+    user: null,
+    scope: 'todo',         // 'todo' | 'personal' | 'negocio'
+    tipoFilter: 'todos',   // 'todos' | 'ingreso' | 'gasto'
+    searchQuery: '',       // Filtro de búsqueda en tiempo real
+    theme: localStorage.getItem('balance_theme') || 'theme-1',
+    categoriasIngreso: [],
+    categoriasGasto: [],
+    movimientos: []
+  };
+
+  // ==================== 1. MANEJO DEL SELECTOR DE TEMA ====================
+  const btnTheme1 = document.getElementById('btn-theme-1');
+  const btnTheme2 = document.getElementById('btn-theme-2');
+
+  function applyTheme(themeName) {
+    state.theme = themeName;
+    document.body.className = themeName;
+    localStorage.setItem('balance_theme', themeName);
+
+    if (themeName === 'theme-1') {
+      btnTheme1.classList.add('active');
+      btnTheme2.classList.remove('active');
+    } else {
+      btnTheme2.classList.add('active');
+      btnTheme1.classList.remove('active');
+    }
+  }
+
+  // Inicializar tema guardado
+  applyTheme(state.theme);
+
+  btnTheme1.addEventListener('click', () => applyTheme('theme-1'));
+  btnTheme2.addEventListener('click', () => applyTheme('theme-2'));
+
+  // ==================== 2. ELEMENTOS DEL DOM ====================
+  const authSection = document.getElementById('auth-section');
+  const dashboardSection = document.getElementById('dashboard-section');
+  const navUserPill = document.getElementById('nav-user-pill');
+  const navUserName = document.getElementById('nav-user-name');
+  const btnLogout = document.getElementById('btn-logout');
+
+  // Pestañas de Auth
+  const tabLogin = document.getElementById('tab-login');
+  const tabRegister = document.getElementById('tab-register');
+  const formLogin = document.getElementById('form-login');
+  const formRegister = document.getElementById('form-register');
+  const authAlert = document.getElementById('auth-alert');
+
+  // Elementos de Métricas y Hero
+  const heroLabel = document.getElementById('hero-label');
+  const heroAmount = document.getElementById('hero-amount');
+  const metricDiarioBal = document.getElementById('metric-diario-balance');
+  const metricDiarioIng = document.getElementById('metric-diario-ingresos');
+  const metricDiarioGas = document.getElementById('metric-diario-gastos');
+  const metricSemanalBal = document.getElementById('metric-semanal-balance');
+  const metricSemanalIng = document.getElementById('metric-semanal-ingresos');
+  const metricSemanalGas = document.getElementById('metric-semanal-gastos');
+  const metricMensualBal = document.getElementById('metric-mensual-balance');
+  const metricMensualIng = document.getElementById('metric-mensual-ingresos');
+  const metricMensualGas = document.getElementById('metric-mensual-gastos');
+
+  // Tabla
+  const movementsTbody = document.getElementById('movements-tbody');
+  const emptyState = document.getElementById('empty-state');
+  const tableSearch = document.getElementById('table-search');
+  const btnExportCsv = document.getElementById('btn-export-csv');
+
+  // Modales
+  const modalIngreso = document.getElementById('modal-ingreso');
+  const modalGasto = document.getElementById('modal-gasto');
+  const modalEdit = document.getElementById('modal-edit');
+  const btnOpenIngreso = document.getElementById('btn-open-ingreso');
+  const btnOpenGasto = document.getElementById('btn-open-gasto');
+
+  // Formularios Modales
+  const formIngreso = document.getElementById('form-ingreso');
+  const formGasto = document.getElementById('form-gasto');
+  const formEdit = document.getElementById('form-edit');
+  const selectCatIngreso = document.getElementById('ingreso-categoria');
+  const selectCatGasto = document.getElementById('gasto-categoria');
+  const selectCatEdit = document.getElementById('edit-categoria');
+
+  // ==================== 3. UTILIDADES ====================
+  function formatMoney(amount) {
+    const val = parseFloat(amount) || 0;
+    return '$ ' + val.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function getTodayString() {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function formatLocalTime(isoString, fallbackHora) {
+    if (!isoString) return fallbackHora || '';
+    try {
+      const d = new Date(isoString);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch (e) {
+      return fallbackHora || '';
+    }
+  }
+
+  // Formateador de moneda en tiempo real mientras el usuario escribe (Separadores de miles)
+  function setupCurrencyMask(inputElem) {
+    if (!inputElem) return;
+    inputElem.addEventListener('input', (e) => {
+      let raw = e.target.value.replace(/[^\d,.]/g, '');
+      if (!raw) {
+        e.target.value = '';
+        return;
+      }
+      const hasComma = raw.includes(',');
+      const parts = raw.split(/[,.]/);
+      const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+      if (parts.length > 1) {
+        const decimals = parts.slice(1).join('').substring(0, 2);
+        e.target.value = `${integerPart},${decimals}`;
+      } else {
+        e.target.value = integerPart + (hasComma ? ',' : '');
+      }
+    });
+  }
+
+  function parseCurrencyInput(value) {
+    if (!value) return 0;
+    const clean = value.toString().replace(/\./g, '').replace(',', '.');
+    return parseFloat(clean) || 0;
+  }
+
+  function formatNumberToMask(num) {
+    if (num === null || num === undefined) return '';
+    const parts = num.toString().split('.');
+    const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    if (parts.length > 1 && parseInt(parts[1], 10) > 0) {
+      return `${integerPart},${parts[1].substring(0, 2)}`;
+    }
+    return integerPart;
+  }
+
+  function showAuthAlert(msg, type = 'error') {
+    authAlert.textContent = msg;
+    authAlert.className = `alert ${type}`;
+    authAlert.style.display = 'block';
+  }
+
+  function hideAuthAlert() {
+    authAlert.style.display = 'none';
+  }
+
+  // ==================== 4. AUTENTICACIÓN ====================
+  tabLogin.addEventListener('click', () => {
+    tabLogin.classList.add('active');
+    tabRegister.classList.remove('active');
+    formLogin.style.display = 'block';
+    formRegister.style.display = 'none';
+    hideAuthAlert();
+  });
+
+  tabRegister.addEventListener('click', () => {
+    tabRegister.classList.add('active');
+    tabLogin.classList.remove('active');
+    formRegister.style.display = 'block';
+    formLogin.style.display = 'none';
+    hideAuthAlert();
+  });
+
+  // Login
+  formLogin.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideAuthAlert();
+
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        return showAuthAlert(data.error || 'Error al iniciar sesión');
+      }
+
+      state.user = data.usuario;
+      setupAppForUser();
+    } catch (err) {
+      showAuthAlert('Error de conexión con el servidor');
+    }
+  });
+
+  // Registro
+  formRegister.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideAuthAlert();
+
+    const nombre = document.getElementById('register-name').value;
+    const email = document.getElementById('register-email').value;
+    const password = document.getElementById('register-password').value;
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, email, password })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        return showAuthAlert(data.error || 'Error al crear la cuenta');
+      }
+
+      state.user = data.usuario;
+      setupAppForUser();
+    } catch (err) {
+      showAuthAlert('Error de conexión con el servidor');
+    }
+  });
+
+  // Logout
+  btnLogout.addEventListener('click', async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {}
+    state.user = null;
+    showAuthScreen();
+  });
+
+  // Verificar sesión existente
+  async function checkSession() {
+    try {
+      const res = await fetch('/api/auth/me');
+      if (res.ok) {
+        const data = await res.json();
+        state.user = data.usuario;
+        setupAppForUser();
+      } else {
+        showAuthScreen();
+      }
+    } catch (err) {
+      showAuthScreen();
+    }
+  }
+
+  function showAuthScreen() {
+    authSection.style.display = 'flex';
+    dashboardSection.style.display = 'none';
+    navUserPill.style.display = 'none';
+  }
+
+  function setupAppForUser() {
+    authSection.style.display = 'none';
+    dashboardSection.style.display = 'block';
+    navUserPill.style.display = 'flex';
+    navUserName.textContent = state.user.nombre.split(' ')[0];
+
+    loadCategories();
+    refreshDashboard();
+  }
+
+  // ==================== 5. CARGA DE DATOS Y BALANCES ====================
+  async function loadCategories() {
+    try {
+      const [resIng, resGas] = await Promise.all([
+        fetch('/api/categorias?tipo=ingreso'),
+        fetch('/api/categorias?tipo=gasto')
+      ]);
+
+      state.categoriasIngreso = await resIng.json();
+      state.categoriasGasto = await resGas.json();
+
+      populateSelect(selectCatIngreso, state.categoriasIngreso);
+      populateSelect(selectCatGasto, state.categoriasGasto);
+    } catch (e) {
+      console.error('Error al cargar categorías:', e);
+    }
+  }
+
+  function populateSelect(selectElem, categories, selectedId = null) {
+    selectElem.innerHTML = '<option value="">Selecciona una categoría...</option>';
+    categories.forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat.id;
+      opt.textContent = cat.nombre;
+      if (selectedId && parseInt(selectedId) === cat.id) {
+        opt.selected = true;
+      }
+      selectElem.appendChild(opt);
+    });
+  }
+
+  async function loadBalances() {
+    try {
+      const res = await fetch(`/api/movimientos/balances?ambito=${state.scope}`);
+      if (!res.ok) return;
+      const data = await res.json();
+
+      // Actualizar Hero Card
+      const scopeLabels = {
+        todo: 'Balance General Consolidado (Personal + Negocio)',
+        personal: 'Balance Personal',
+        negocio: 'Balance de Negocio'
+      };
+      heroLabel.textContent = scopeLabels[state.scope] || 'Balance General';
+
+      // Usamos el balance del mes o histórico según corresponda
+      const totalBalance = data.historico.balance;
+      heroAmount.textContent = formatMoney(totalBalance);
+      heroAmount.className = 'hero-balance-amount ' + (totalBalance >= 0 ? 'positive' : 'negative');
+
+      // Actualizar Métricas de Períodos
+      // 1. Diario
+      metricDiarioBal.textContent = formatMoney(data.diario.balance);
+      metricDiarioBal.style.color = data.diario.balance >= 0 ? 'var(--color-income)' : 'var(--color-expense)';
+      metricDiarioIng.textContent = formatMoney(data.diario.ingresos);
+      metricDiarioGas.textContent = formatMoney(data.diario.gastos);
+
+      // 2. Semanal
+      metricSemanalBal.textContent = formatMoney(data.semanal.balance);
+      metricSemanalBal.style.color = data.semanal.balance >= 0 ? 'var(--color-income)' : 'var(--color-expense)';
+      metricSemanalIng.textContent = formatMoney(data.semanal.ingresos);
+      metricSemanalGas.textContent = formatMoney(data.semanal.gastos);
+
+      // 3. Mensual
+      metricMensualBal.textContent = formatMoney(data.mensual.balance);
+      metricMensualBal.style.color = data.mensual.balance >= 0 ? 'var(--color-income)' : 'var(--color-expense)';
+      metricMensualIng.textContent = formatMoney(data.mensual.ingresos);
+      metricMensualGas.textContent = formatMoney(data.mensual.gastos);
+
+    } catch (e) {
+      console.error('Error al cargar balances:', e);
+    }
+  }
+
+  async function loadMovements() {
+    try {
+      let url = `/api/movimientos?ambito=${state.scope}`;
+      if (state.tipoFilter !== 'todos') {
+        url += `&tipo=${state.tipoFilter}`;
+      }
+
+      const res = await fetch(url);
+      if (!res.ok) return;
+      state.movimientos = await res.json();
+      renderMovementsTable();
+    } catch (e) {
+      console.error('Error al listar movimientos:', e);
+    }
+  }
+
+  function renderMovementsTable() {
+    movementsTbody.innerHTML = '';
+
+    const query = (state.searchQuery || '').toLowerCase().trim();
+    const items = (state.movimientos || []).filter(mov => {
+      if (!query) return true;
+      const desc = (mov.descripcion || '').toLowerCase();
+      const cat = (mov.categoria_nombre || '').toLowerCase();
+      const ambito = (mov.ambito || '').toLowerCase();
+      return desc.includes(query) || cat.includes(query) || ambito.includes(query);
+    });
+
+    if (items.length === 0) {
+      emptyState.style.display = 'block';
+      return;
+    }
+
+    emptyState.style.display = 'none';
+
+    items.forEach(mov => {
+      const tr = document.createElement('tr');
+      const isIngreso = mov.tipo === 'ingreso';
+
+      tr.innerHTML = `
+        <td style="white-space: nowrap;">
+          <div style="font-weight: 600;">${mov.fecha}</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">${formatLocalTime(mov.creado_en, mov.hora)}</div>
+        </td>
+        <td><strong>${escapeHtml(mov.descripcion || 'Sin descripción')}</strong></td>
+        <td>
+          <span class="badge-ambito ${mov.ambito}">${mov.ambito}</span>
+        </td>
+        <td>${escapeHtml(mov.categoria_nombre)}</td>
+        <td>
+          <span class="badge-tipo ${mov.tipo}">
+            ${isIngreso ? '▲ Ingreso' : '▼ Gasto'}
+          </span>
+        </td>
+        <td>
+          <span class="table-amount ${mov.tipo}">
+            ${isIngreso ? '+' : '-'} ${formatMoney(mov.monto)}
+          </span>
+        </td>
+        <td style="text-align: right;">
+          <div class="table-actions" style="justify-content: flex-end;">
+            <button type="button" class="btn-icon" data-edit-id="${mov.id}" title="Editar">
+              ✏️
+            </button>
+            <button type="button" class="btn-icon delete" data-delete-id="${mov.id}" title="Eliminar">
+              🗑️
+            </button>
+          </div>
+        </td>
+      `;
+
+      // Eventos de botones de acción
+      tr.querySelector('[data-edit-id]').addEventListener('click', () => openEditModal(mov));
+      tr.querySelector('[data-delete-id]').addEventListener('click', () => confirmDeleteMovement(mov.id));
+
+      movementsTbody.appendChild(tr);
+    });
+  }
+
+  function refreshDashboard() {
+    loadBalances();
+    loadMovements();
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // ==================== 6. FILTROS DE ÁMBITO Y TIPO ====================
+  // Tabs de Ámbito (Todo / Personal / Negocio)
+  document.querySelectorAll('.scope-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.scope-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.scope = btn.dataset.scope;
+      refreshDashboard();
+    });
+  });
+
+  // Filtros de Tipo en Tabla (Todos / Ingreso / Gasto)
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.tipoFilter = btn.dataset.filterTipo;
+      loadMovements();
+    });
+  });
+
+  // Buscador en tiempo real de movimientos
+  if (tableSearch) {
+    tableSearch.addEventListener('input', (e) => {
+      state.searchQuery = e.target.value;
+      renderMovementsTable();
+    });
+  }
+
+  // Exportar a archivo CSV (Compatible con Excel)
+  if (btnExportCsv) {
+    btnExportCsv.addEventListener('click', () => {
+      const items = state.movimientos || [];
+      if (items.length === 0) {
+        return alert('No hay movimientos registrados para exportar.');
+      }
+
+      const query = (state.searchQuery || '').toLowerCase().trim();
+      const filtered = items.filter(mov => {
+        if (!query) return true;
+        const desc = (mov.descripcion || '').toLowerCase();
+        const cat = (mov.categoria_nombre || '').toLowerCase();
+        const ambito = (mov.ambito || '').toLowerCase();
+        return desc.includes(query) || cat.includes(query) || ambito.includes(query);
+      });
+
+      if (filtered.length === 0) {
+        return alert('No hay movimientos que coincidan con la búsqueda actual.');
+      }
+
+      // Columnas del reporte
+      const headers = ['ID', 'Fecha', 'Hora', 'Tipo', 'Ambito', 'Categoria', 'Descripcion', 'Monto ($)'];
+      const rows = filtered.map(m => [
+        m.id,
+        m.fecha,
+        `"${formatLocalTime(m.creado_en, m.hora)}"`,
+        m.tipo.toUpperCase(),
+        m.ambito.toUpperCase(),
+        `"${(m.categoria_nombre || '').replace(/"/g, '""')}"`,
+        `"${(m.descripcion || '').replace(/"/g, '""')}"`,
+        parseFloat(m.monto).toFixed(2)
+      ]);
+
+      // Agregar BOM (\uFEFF) para que Excel reconozca tildes y caracteres en español
+      const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = url;
+      downloadLink.download = `reporte_balance_${state.scope}_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  // ==================== 7. MODALES Y REGISTRO (CRUD) ====================
+  // Cerrar modales con [x] o clic afuera
+  document.querySelectorAll('[data-close-modal]').forEach(btn => {
+    btn.addEventListener('click', () => closeModalAll());
+  });
+
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeModalAll();
+    });
+  });
+
+  function closeModalAll() {
+    modalIngreso.classList.remove('active');
+    modalGasto.classList.remove('active');
+    modalEdit.classList.remove('active');
+  }
+
+  // Inicializar máscaras de moneda en los inputs
+  setupCurrencyMask(document.getElementById('ingreso-monto'));
+  setupCurrencyMask(document.getElementById('gasto-monto'));
+  setupCurrencyMask(document.getElementById('edit-monto'));
+
+  // Abrir Modal Ingreso
+  btnOpenIngreso.addEventListener('click', () => {
+    formIngreso.reset();
+    document.getElementById('ingreso-fecha').value = getTodayString();
+    populateSelect(selectCatIngreso, state.categoriasIngreso);
+    modalIngreso.classList.add('active');
+  });
+
+  // Abrir Modal Gasto
+  btnOpenGasto.addEventListener('click', () => {
+    formGasto.reset();
+    document.getElementById('gasto-fecha').value = getTodayString();
+    populateSelect(selectCatGasto, state.categoriasGasto);
+    modalGasto.classList.add('active');
+  });
+
+  // Guardar Ingreso
+  formIngreso.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const monto = parseCurrencyInput(document.getElementById('ingreso-monto').value);
+    const ambito = document.querySelector('input[name="ingreso-ambito"]:checked').value;
+    const categoria_id = document.getElementById('ingreso-categoria').value;
+    const fecha = document.getElementById('ingreso-fecha').value;
+    const descripcion = document.getElementById('ingreso-desc').value;
+
+    try {
+      const res = await fetch('/api/movimientos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo: 'ingreso', ambito, monto, categoria_id, fecha, descripcion })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        return alert(err.error || 'Error al guardar ingreso');
+      }
+
+      closeModalAll();
+      refreshDashboard();
+    } catch (err) {
+      alert('Error de conexión');
+    }
+  });
+
+  // Guardar Gasto
+  formGasto.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const monto = parseCurrencyInput(document.getElementById('gasto-monto').value);
+    const ambito = document.querySelector('input[name="gasto-ambito"]:checked').value;
+    const categoria_id = document.getElementById('gasto-categoria').value;
+    const fecha = document.getElementById('gasto-fecha').value;
+    const descripcion = document.getElementById('gasto-desc').value;
+
+    try {
+      const res = await fetch('/api/movimientos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo: 'gasto', ambito, monto, categoria_id, fecha, descripcion })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        return alert(err.error || 'Error al guardar el gasto');
+      }
+
+      closeModalAll();
+      refreshDashboard();
+    } catch (err) {
+      alert('Error de conexión');
+    }
+  });
+
+  // Editar Movimiento
+  function openEditModal(mov) {
+    document.getElementById('edit-id').value = mov.id;
+    document.getElementById('edit-tipo').value = mov.tipo;
+    document.getElementById('edit-monto').value = formatNumberToMask(mov.monto);
+    document.getElementById('edit-fecha').value = mov.fecha;
+    document.getElementById('edit-desc').value = mov.descripcion || '';
+
+    if (mov.ambito === 'personal') {
+      document.getElementById('edit-ambito-personal').checked = true;
+    } else {
+      document.getElementById('edit-ambito-negocio').checked = true;
+    }
+
+    const cats = mov.tipo === 'ingreso' ? state.categoriasIngreso : state.categoriasGasto;
+    populateSelect(selectCatEdit, cats, mov.categoria_id);
+
+    const titleElem = document.getElementById('edit-title');
+    titleElem.textContent = `Editar ${mov.tipo === 'ingreso' ? 'Ingreso' : 'Gasto'}`;
+    titleElem.style.color = mov.tipo === 'ingreso' ? 'var(--color-income)' : 'var(--color-expense)';
+
+    const btnSubmit = document.getElementById('edit-submit-btn');
+    btnSubmit.className = `btn-submit ${mov.tipo === 'ingreso' ? 'btn-income' : 'btn-expense'}`;
+
+    modalEdit.classList.add('active');
+  }
+
+  formEdit.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('edit-id').value;
+    const tipo = document.getElementById('edit-tipo').value;
+    const monto = parseCurrencyInput(document.getElementById('edit-monto').value);
+    const ambito = document.querySelector('input[name="edit-ambito"]:checked').value;
+    const categoria_id = document.getElementById('edit-categoria').value;
+    const fecha = document.getElementById('edit-fecha').value;
+    const descripcion = document.getElementById('edit-desc').value;
+    const descripcion = document.getElementById('edit-desc').value;
+
+    try {
+      const res = await fetch(`/api/movimientos/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo, ambito, monto, categoria_id, fecha, descripcion })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        return alert(err.error || 'Error al actualizar movimiento');
+      }
+
+      closeModalAll();
+      refreshDashboard();
+    } catch (err) {
+      alert('Error de conexión');
+    }
+  });
+
+  // Eliminar Movimiento
+  async function confirmDeleteMovement(id) {
+    if (!confirm('¿Estás seguro de que deseas eliminar este movimiento? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/movimientos/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json();
+        return alert(err.error || 'Error al eliminar movimiento');
+      }
+      refreshDashboard();
+    } catch (err) {
+      alert('Error de conexión');
+    }
+  }
+
+  // Iniciar comprobación de sesión al arrancar
+  checkSession();
+});

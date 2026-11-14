@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BALANCE - Administrador Financiero</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <!-- Google Fonts Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="theme-1">
+
+  <!-- ================= BARRA SUPERIOR (NAVBAR) ================= -->
+  <header class="navbar">
+    <div class="navbar-container">
+      
+      <!-- LOGO 3: Gráfico Ascendente Dinámico Minimalista -->
+      <a href="#" class="brand" id="brand-logo">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="16" width="6" height="13" rx="3" fill="#E5957E" opacity="0.85" />
+          <rect x="13" y="9" width="6" height="20" rx="3" fill="#2D6B50" />
+          <rect x="23" y="3" width="6" height="26" rx="3" fill="#FFFFFF" />
+          <path d="M4 11L14 5L24 2" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span>BALANCE</span>
+      </a>
+
+      <!-- Acciones de Navegación -->
+      <div class="nav-actions">
+        <!-- SELECTOR INTERACTIVO DE PALETAS -->
+        <div class="theme-switcher" title="Cambia entre tus dos paletas elegidas">
+          <button type="button" class="theme-btn active" id="btn-theme-1">🌿 Paleta 1</button>
+          <button type="button" class="theme-btn" id="btn-theme-2">🌸 Paleta 2</button>
+        </div>
+
+        <!-- Usuario Autenticado (Oculto por defecto) -->
+        <div class="user-pill" id="nav-user-pill" style="display: none;">
+          <span id="nav-user-name">Usuario</span>
+          <button type="button" class="btn-logout" id="btn-logout" title="Cerrar Sesión">Salir</button>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ================= SECCIÓN DE AUTENTICACIÓN (LOGIN / REGISTRO) ================= -->
+  <main class="auth-wrapper" id="auth-section">
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" id="tab-login">Iniciar Sesión</button>
+        <button type="button" class="auth-tab" id="tab-register">Crear Cuenta</button>
+      </div>
+
+      <div id="auth-alert" class="alert"></div>
+
+      <!-- Formulario Login -->
+      <form id="form-login">
+        <div class="form-group">
+          <label class="form-label" for="login-email">Correo o Nombre de Usuario</label>
+          <input type="text" id="login-email" class="form-input" placeholder="tu@correo.com o tu nombre" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="login-password">Contraseña</label>
+          <input type="password" id="login-password" class="form-input" placeholder="Tu contraseña" required>
+        </div>
+        <button type="submit" class="btn-submit btn-income">Entrar a BALANCE</button>
+      </form>
+
+      <!-- Formulario Registro -->
+      <form id="form-register" style="display: none;">
+        <div class="form-group">
+          <label class="form-label" for="register-name">Nombre Completo</label>
+          <input type="text" id="register-name" class="form-input" placeholder="Ej. Camila Morales" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="register-email">Correo Electrónico</label>
+          <input type="email" id="register-email" class="form-input" placeholder="tu@correo.com" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="register-password">Contraseña (Mínimo 6 caracteres)</label>
+          <input type="password" id="register-password" class="form-input" placeholder="Crea una contraseña segura" required minlength="6">
+        </div>
+        <button type="submit" class="btn-submit btn-income">Registrarme</button>
+      </form>
+
+      <div class="auth-security-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>Contraseñas protegidas con Argon2i (Requisito 7)</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- ================= DASHBOARD PRINCIPAL (DISTRIBUCIÓN B) ================= -->
+  <main class="main-layout" id="dashboard-section" style="display: none;">
+    
+    <!-- Barra de Selección de Ámbito (Todo / Personal / Negocio) -->
+    <div class="scope-bar">
+      <div>
+        <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 0.15rem;">Resumen Financiero</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">Control unificado de ingresos, gastos y balances</p>
+      </div>
+
+      <div class="scope-tabs" role="tablist">
+        <button type="button" class="scope-tab active" data-scope="todo">Todo</button>
+        <button type="button" class="scope-tab" data-scope="personal">Personal</button>
+        <button type="button" class="scope-tab" data-scope="negocio">Negocio</button>
+      </div>
+    </div>
+
+    <!-- TARJETA PRINCIPAL (HERO BALANCE) -->
+    <section class="hero-card">
+      <div class="hero-balance-info">
+        <div class="hero-balance-label" id="hero-label">Balance General Consolidado</div>
+        <div class="hero-balance-amount" id="hero-amount">$ 0.00</div>
+      </div>
+
+      <!-- BOTONES INDEPENDIENTES PARA INGRESOS Y GASTOS -->
+      <div class="hero-actions">
+        <button type="button" class="btn-action btn-income" id="btn-open-ingreso">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Registrar Ingreso
+        </button>
+        <button type="button" class="btn-action btn-expense" id="btn-open-gasto">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Registrar Gasto
+        </button>
+      </div>
+    </section>
+
+    <!-- GRILLA DE TOTALES Y BALANCES (REQUISITOS 2 Y 3: DIARIO, SEMANAL, MENSUAL) -->
+    <section class="metrics-grid">
+      <!-- Tarjeta Diario -->
+      <article class="metric-card">
+        <div class="metric-header">
+          <h3 class="metric-title">Hoy (Diario)</h3>
+          <span class="metric-badge">Día actual</span>
+        </div>
+        <div class="metric-balance-box">
+          <div class="metric-balance-label">Balance del día</div>
+          <div class="metric-balance-val" id="metric-diario-balance">$ 0.00</div>
+        </div>
+        <div class="metric-row">
+          <span class="metric-row-label">Ingresos:</span>
+          <span class="metric-row-val income" id="metric-diario-ingresos">$ 0.00</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-row-label">Gastos:</span>
+          <span class="metric-row-val expense" id="metric-diario-gastos">$ 0.00</span>
+        </div>
+      </article>
+
+      <!-- Tarjeta Semanal -->
+      <article class="metric-card">
+        <div class="metric-header">
+          <h3 class="metric-title">Esta Semana</h3>
+          <span class="metric-badge">Semana ISO</span>
+        </div>
+        <div class="metric-balance-box">
+          <div class="metric-balance-label">Balance semanal</div>
+          <div class="metric-balance-val" id="metric-semanal-balance">$ 0.00</div>
+        </div>
+        <div class="metric-row">
+          <span class="metric-row-label">Ingresos:</span>
+          <span class="metric-row-val income" id="metric-semanal-ingresos">$ 0.00</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-row-label">Gastos:</span>
+          <span class="metric-row-val expense" id="metric-semanal-gastos">$ 0.00</span>
+        </div>
+      </article>
+
+      <!-- Tarjeta Mensual -->
+      <article class="metric-card">
+        <div class="metric-header">
+          <h3 class="metric-title">Este Mes</h3>
+          <span class="metric-badge">Mes actual</span>
+        </div>
+        <div class="metric-balance-box">
+          <div class="metric-balance-label">Balance mensual</div>
+          <div class="metric-balance-val" id="metric-mensual-balance">$ 0.00</div>
+        </div>
+        <div class="metric-row">
+          <span class="metric-row-label">Ingresos:</span>
+          <span class="metric-row-val income" id="metric-mensual-ingresos">$ 0.00</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-row-label">Gastos:</span>
+          <span class="metric-row-val expense" id="metric-mensual-gastos">$ 0.00</span>
+        </div>
+      </article>
+    </section>
+
+    <!-- TABLA DE MOVIMIENTOS (CRUD) -->
+    <section class="table-section">
+      <div class="table-header">
+        <h3 class="table-title">Historial de Movimientos</h3>
+
+        <div class="table-controls" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+          <!-- Buscador Rápido -->
+          <div style="position: relative;">
+            <input type="text" id="table-search" class="form-input" placeholder="🔍 Buscar concepto..." style="padding: 6px 12px; font-size: 0.85rem; width: 190px;">
+          </div>
+
+          <!-- Filtro de Tipo -->
+          <div class="table-filters">
+            <button type="button" class="filter-btn active" data-filter-tipo="todos">Todos</button>
+            <button type="button" class="filter-btn" data-filter-tipo="ingreso">Ingresos</button>
+            <button type="button" class="filter-btn" data-filter-tipo="gasto">Gastos</button>
+          </div>
+
+          <!-- Botón de Exportar a CSV/Excel -->
+          <button type="button" class="btn-action" id="btn-export-csv" style="padding: 6px 14px; font-size: 0.85rem; background: var(--color-accent); color: #FFFFFF;" title="Descargar reporte en formato Excel/CSV">
+            📥 Exportar Excel
+          </button>
+        </div>
+      </div>
+
+      <div class="data-table-container">
+        <table class="data-table" id="movements-table">
+          <thead>
+            <tr>
+              <th>Fecha y Hora</th>
+              <th>Descripción</th>
+              <th>Ámbito</th>
+              <th>Categoría</th>
+              <th>Tipo</th>
+              <th>Monto</th>
+              <th style="text-align: right;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="movements-tbody">
+            <!-- Filas dinámicas generadas con JS -->
+          </tbody>
+        </table>
+
+        <!-- Mensaje si no hay movimientos -->
+        <div class="empty-state" id="empty-state" style="display: none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          <p>No se encontraron movimientos para el filtro seleccionado.</p>
+          <p><small>Haz clic en "Registrar Ingreso" o "Registrar Gasto" para comenzar.</small></p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= MODAL: REGISTRAR INGRESO ================= -->
+  <div class="modal-overlay" id="modal-ingreso">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title" style="color: var(--color-income);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          Nuevo Ingreso
+        </h3>
+        <button type="button" class="modal-close" data-close-modal>&times;</button>
+      </div>
+
+      <form id="form-ingreso">
+        <div class="form-group">
+          <label class="form-label" for="ingreso-monto">Monto ($)*</label>
+          <input type="text" inputmode="decimal" id="ingreso-monto" class="form-input" placeholder="Ej. 1.500.000" required autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Ámbito del Ingreso*</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="ingreso-ambito" value="personal" checked> Personal
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="ingreso-ambito" value="negocio"> Negocio
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="ingreso-categoria">Categoría de Ingreso*</label>
+          <select id="ingreso-categoria" class="form-select" required>
+            <option value="">Cargando categorías...</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="ingreso-fecha">Fecha*</label>
+          <input type="date" id="ingreso-fecha" class="form-input" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="ingreso-desc">Descripción (Opcional)</label>
+          <input type="text" id="ingreso-desc" class="form-input" placeholder="Ej. Pago de quincena, Venta cliente #12">
+        </div>
+
+        <button type="submit" class="btn-submit btn-income">Guardar Ingreso</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: REGISTRAR GASTO ================= -->
+  <div class="modal-overlay" id="modal-gasto">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title" style="color: var(--color-expense);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          Nuevo Gasto
+        </h3>
+        <button type="button" class="modal-close" data-close-modal>&times;</button>
+      </div>
+
+      <form id="form-gasto">
+        <div class="form-group">
+          <label class="form-label" for="gasto-monto">Monto ($)*</label>
+          <input type="text" inputmode="decimal" id="gasto-monto" class="form-input" placeholder="Ej. 350.000" required autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Ámbito del Gasto*</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="gasto-ambito" value="personal" checked> Personal
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="gasto-ambito" value="negocio"> Negocio
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="gasto-categoria">Categoría de Gasto*</label>
+          <select id="gasto-categoria" class="form-select" required>
+            <option value="">Cargando categorías...</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="gasto-fecha">Fecha*</label>
+          <input type="date" id="gasto-fecha" class="form-input" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="gasto-desc">Descripción (Opcional)</label>
+          <input type="text" id="gasto-desc" class="form-input" placeholder="Ej. Compra supermercado, Pago de luz">
+        </div>
+
+        <button type="submit" class="btn-submit btn-expense">Guardar Gasto</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: EDITAR MOVIMIENTO ================= -->
+  <div class="modal-overlay" id="modal-edit">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title" id="edit-title">Editar Movimiento</h3>
+        <button type="button" class="modal-close" data-close-modal>&times;</button>
+      </div>
+
+      <form id="form-edit">
+        <input type="hidden" id="edit-id">
+        <input type="hidden" id="edit-tipo">
+
+        <div class="form-group">
+          <label class="form-label" for="edit-monto">Monto ($)*</label>
+          <input type="text" inputmode="decimal" id="edit-monto" class="form-input" placeholder="0" required autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Ámbito*</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="edit-ambito" value="personal" id="edit-ambito-personal"> Personal
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="edit-ambito" value="negocio" id="edit-ambito-negocio"> Negocio
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="edit-categoria">Categoría*</label>
+          <select id="edit-categoria" class="form-select" required></select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="edit-fecha">Fecha*</label>
+          <input type="date" id="edit-fecha" class="form-input" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="edit-desc">Descripción</label>
+          <input type="text" id="edit-desc" class="form-input">
+        </div>
+
+        <button type="submit" class="btn-submit btn-income" id="edit-submit-btn">Actualizar Movimiento</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Script Principal de la Aplicación -->
+  <script src="/js/app.js"></script>
+</body>
+</html>

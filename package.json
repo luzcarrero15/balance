@@ -1,0 +1,17 @@
+{
+  "name": "balance",
+  "version": "1.0.0",
+  "description": "Administrador financiero personal y de negocio - Proyecto BALANCE",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "argon2": "^0.41.1",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.1",
+    "pg": "^8.13.1"
+  }
+}
