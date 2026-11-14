@@ -132,18 +132,41 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Almacén en memoria para diagnóstico del último intento de envío de correo
+let lastEmailAttempt = {
+  timestamp: null,
+  recipient: null,
+  status: null,
+  success: null,
+  response: null,
+  error: null
+};
+
 /**
  * Helper para enviar correo de recuperación con Resend
  */
 async function sendResetEmailWithResend(toEmail, userName, resetUrl) {
-  const apiKey = process.env.RESEND_API_KEY;
+  const rawKey = process.env.RESEND_API_KEY || '';
+  // Limpiar posibles espacios accidentales o comillas
+  const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
+
   if (!apiKey) {
-    console.warn('[RESEND WARNING] RESEND_API_KEY no está configurada en las variables de entorno.');
+    console.warn('[RESEND WARNING] RESEND_API_KEY no está configurada en las variables de entorno de Render.');
     console.log(`[ENLACE DE RECUPERACIÓN GENERADO]: ${resetUrl}`);
+    lastEmailAttempt = {
+      timestamp: new Date().toISOString(),
+      recipient: toEmail,
+      status: 'MISSING_API_KEY',
+      success: false,
+      response: 'RESEND_API_KEY no encontrada en process.env',
+      error: null
+    };
     return false;
   }
 
   try {
+    console.log(`[RESEND INFO] Intentando enviar correo a: ${toEmail} con clave ${apiKey.substring(0, 5)}...`);
+    
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -182,12 +205,73 @@ async function sendResetEmailWithResend(toEmail, userName, resetUrl) {
       })
     });
 
+    let resData;
+    try {
+      resData = await response.json();
+    } catch (parseErr) {
+      resData = await response.text();
+    }
+
+    console.log(`[RESEND RESPONSE] Status: ${response.status}`, resData);
+
+    lastEmailAttempt = {
+      timestamp: new Date().toISOString(),
+      recipient: toEmail,
+      status: response.status,
+      success: response.ok,
+      response: resData,
+      error: null
+    };
+
     return response.ok;
   } catch (error) {
-    console.error('Error al enviar correo con Resend:', error);
+    console.error('Error de red al conectar con Resend:', error.message);
+    lastEmailAttempt = {
+      timestamp: new Date().toISOString(),
+      recipient: toEmail,
+      status: 'FETCH_ERROR',
+      success: false,
+      response: null,
+      error: error.message
+    };
     return false;
   }
 }
+
+/**
+ * GET /api/auth/resend-diagnostic - Diagnóstico seguro del estado de Resend (sin exponer la clave)
+ */
+router.get('/resend-diagnostic', async (req, res) => {
+  const rawKey = process.env.RESEND_API_KEY || '';
+  const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
+
+  const diag = {
+    apiKeyConfigured: Boolean(apiKey),
+    apiKeyLength: apiKey.length,
+    apiKeyPrefix: apiKey ? apiKey.substring(0, 5) + '...' : 'none',
+    apiKeyValidFormat: apiKey.startsWith('re_'),
+    lastEmailAttempt: lastEmailAttempt
+  };
+
+  // Probar conectividad con Resend si hay clave
+  if (apiKey) {
+    try {
+      const ping = await fetch('https://api.resend.com/api-keys', {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      });
+      diag.resendPingStatus = ping.status;
+      try {
+        diag.resendPingData = await ping.json();
+      } catch (e) {
+        diag.resendPingData = await ping.text();
+      }
+    } catch (pingErr) {
+      diag.resendPingError = pingErr.message;
+    }
+  }
+
+  res.json(diag);
+});
 
 /**
  * POST /api/auth/forgot-password - Solicitar enlace seguro de recuperación
