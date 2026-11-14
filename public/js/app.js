@@ -16,29 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
     movimientos: []
   };
 
-  // ==================== 1. MANEJO DEL SELECTOR DE TEMA ====================
-  const btnTheme1 = document.getElementById('btn-theme-1');
-  const btnTheme2 = document.getElementById('btn-theme-2');
-
-  function applyTheme(themeName) {
-    state.theme = themeName;
-    document.body.className = themeName;
-    localStorage.setItem('balance_theme', themeName);
-
-    if (themeName === 'theme-1') {
-      btnTheme1.classList.add('active');
-      btnTheme2.classList.remove('active');
-    } else {
-      btnTheme2.classList.add('active');
-      btnTheme1.classList.remove('active');
-    }
-  }
-
-  // Inicializar tema guardado
-  applyTheme(state.theme);
-
-  btnTheme1.addEventListener('click', () => applyTheme('theme-1'));
-  btnTheme2.addEventListener('click', () => applyTheme('theme-2'));
+  // ==================== 1. TEMA DEFINITIVO (PALETA 1 ESMERALDA & BORGOÑA) ====================
+  document.body.className = 'theme-1';
 
   // ==================== 2. ELEMENTOS DEL DOM ====================
   const authSection = document.getElementById('auth-section');

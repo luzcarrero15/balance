@@ -94,9 +94,14 @@ router.post('/login', async (req, res) => {
 
   try {
     const cleanIdentifier = email.trim().toLowerCase();
-    // Permite iniciar sesión con el correo o con el nombre
+    // Permite iniciar sesión con el correo o con el nombre (completo o primer nombre)
     const result = await db.query(
-      'SELECT id, nombre, email, password_hash, creado_en FROM usuarios WHERE email = $1 OR LOWER(nombre) = $1',
+      `SELECT id, nombre, email, password_hash, creado_en 
+       FROM usuarios 
+       WHERE email = $1 
+          OR LOWER(nombre) = $1 
+          OR LOWER(nombre) LIKE $1 || '%'
+          OR $1 = ANY(STRING_TO_ARRAY(LOWER(nombre), ' '))`,
       [cleanIdentifier]
     );
 
