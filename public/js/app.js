@@ -679,51 +679,48 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Exportar a archivo CSV (Compatible con Excel)
+  // Exportar a archivo Excel (.xlsx) Institucional FARO Balance
   if (btnExportCsv) {
-    btnExportCsv.addEventListener('click', () => {
+    btnExportCsv.addEventListener('click', async () => {
       const items = state.movimientos || [];
       if (items.length === 0) {
-        return alert('No hay movimientos registrados para exportar.');
+        return alert('No hay movimientos registrados para exportar en este ámbito.');
       }
 
-      const query = (state.searchQuery || '').toLowerCase().trim();
-      const filtered = items.filter(mov => {
-        if (!query) return true;
-        const desc = (mov.descripcion || '').toLowerCase();
-        const cat = (mov.categoria_nombre || '').toLowerCase();
-        const ambito = (mov.ambito || '').toLowerCase();
-        return desc.includes(query) || cat.includes(query) || ambito.includes(query);
-      });
+      const originalHtml = btnExportCsv.innerHTML;
+      try {
+        btnExportCsv.disabled = true;
+        btnExportCsv.innerHTML = '⏳ Generando Excel...';
 
-      if (filtered.length === 0) {
-        return alert('No hay movimientos que coincidan con la búsqueda actual.');
+        const params = new URLSearchParams({
+          ambito: state.scope || 'todo',
+          tipo: state.tipoFilter || 'todos',
+          search: (state.searchQuery || '').trim()
+        });
+
+        const res = await fetch(`/api/movimientos/export-excel?${params.toString()}`);
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No se pudo generar el reporte en Excel');
+        }
+
+        const blob = await res.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        const dateStr = new Date().toISOString().split('T')[0];
+        a.download = `FARO_Balance_${state.scope || 'todo'}_${dateStr}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(downloadUrl);
+      } catch (err) {
+        console.error('Error al exportar Excel:', err);
+        alert('Error al descargar el archivo Excel: ' + err.message);
+      } finally {
+        btnExportCsv.disabled = false;
+        btnExportCsv.innerHTML = originalHtml;
       }
-
-      // Columnas del reporte
-      const headers = ['ID', 'Fecha', 'Hora', 'Tipo', 'Ambito', 'Categoria', 'Descripcion', 'Monto ($)'];
-      const rows = filtered.map(m => [
-        m.id,
-        m.fecha,
-        `"${formatLocalTime(m.creado_en, m.hora)}"`,
-        m.tipo.toUpperCase(),
-        m.ambito.toUpperCase(),
-        `"${(m.categoria_nombre || '').replace(/"/g, '""')}"`,
-        `"${(m.descripcion || '').replace(/"/g, '""')}"`,
-        parseFloat(m.monto).toFixed(2)
-      ]);
-
-      // Agregar BOM (\uFEFF) para que Excel reconozca tildes y caracteres en español
-      const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\r\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const downloadLink = document.createElement('a');
-      downloadLink.href = url;
-      downloadLink.download = `reporte_balance_${state.scope}_${new Date().toISOString().slice(0, 10)}.csv`;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-      URL.revokeObjectURL(url);
     });
   }
 
