@@ -29,7 +29,7 @@ app.use('/api/movimientos', movementsRoutes);
 app.get('/api/health', (req, res) => {
   res.json({
     estado: 'ok',
-    aplicacion: 'BALANCE',
+    aplicacion: 'FARO Balance',
     servidor: 'Activo'
   });
 });
@@ -48,7 +48,7 @@ app.use((err, req, res, next) => {
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`===============================================`);
-  console.log(`  🚀 Servidor BALANCE iniciado con éxito`);
+  console.log(`  🚀 Servidor FARO Balance iniciado con éxito`);
   console.log(`  🌐 Escuchando en: http://localhost:${PORT}`);
   console.log(`  🔒 Cifrado de contraseñas: Argon2i`);
   console.log(`===============================================`);
